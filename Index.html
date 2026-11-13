@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Tarefas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen py-10 px-4">
+
+  <div class="max-w-xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+    <!-- Cabeçalho -->
+    <div class="bg-indigo-600 p-6 text-white text-center">
+      <h1 class="text-2xl font-bold flex items-center justify-center gap-2">
+        <i class="fa-solid fa-list-check"></i> Gestor de Tarefas
+      </h1>
+      <p class="text-indigo-100 text-sm mt-1">Organize seu dia a dia com facilidade</p>
+    </div>
+
+    <!-- Entrada de Tarefas -->
+    <div class="p-6 border-b border-slate-100">
+      <form id="task-form" class="flex gap-2">
+        <input 
+          type="text" 
+          id="task-input" 
+          placeholder="O que você precisa fazer?" 
+          class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          required
+        >
+        <button 
+          type="submit" 
+          class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg transition duration-200 flex items-center gap-2"
+        >
+          <i class="fa-solid fa-plus"></i> Adicionar
+        </button>
+      </form>
+
+      <!-- Filtros -->
+      <div class="flex justify-center gap-2 mt-4 text-xs font-semibold">
+        <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700">Todas</button>
+        <button onclick="setFilter('pending')" id="filter-pending" class="px-3 py-1 rounded-full text-slate-500 hover:bg-slate-100">Pendentes</button>
+        <button onclick="setFilter('completed')" id="filter-completed" class="px-3 py-1 rounded-full text-slate-500 hover:bg-slate-100">Concluídas</button>
+      </div>
+    </div>
+
+    <!-- Lista de Tarefas -->
+    <ul id="task-list" class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+      <!-- Tarefas inseridas dinamicamente -->
+    </ul>
+
+    <!-- Rodapé -->
+    <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+      <span id="task-count">0 tarefas restantes</span>
+      <button onclick="clearCompleted()" class="text-red-500 hover:underline">Limpar concluídas</button>
+    </div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('my_tasks')) || [];
+    let currentFilter = 'all';
+
+    const form = document.getElementById('task-form');
+    const input = document.getElementById('task-input');
+    const list = document.getElementById('task-list');
+    const countEl = document.getElementById('task-count');
+
+    function saveTasks() {
+      localStorage.setItem('my_tasks', JSON.stringify(tasks));
+      renderTasks();
+    }
+
+    function addTask(title) {
+      tasks.push({
+        id: Date.now(),
+        title: title,
+        completed: false
+      });
+      saveTasks();
+    }
+
+    function toggleTask(id) {
+      tasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      saveTasks();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
+    }
+
+    function clearCompleted() {
+      tasks = tasks.filter(t => !t.completed);
+      saveTasks();
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+        btn.className = 'px-3 py-1 rounded-full text-slate-500 hover:bg-slate-100';
+      });
+      document.getElementById(`filter-${filter}`).className = 'px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold';
+      renderTasks();
+    }
+
+    function renderTasks() {
+      list.innerHTML = '';
+      
+      const filteredTasks = tasks.filter(t => {
+        if (currentFilter === 'pending') return !t.completed;
+        if (currentFilter === 'completed') return t.completed;
+        return true;
+      });
+
+      if (filteredTasks.length === 0) {
+        list.innerHTML = '<li class="p-6 text-center text-sm text-slate-400">Nenhuma tarefa encontrada.</li>';
+      }
+
+      filteredTasks.forEach(task => {
+        const li = document.createElement('li');
+        li.className = 'p-4 flex items-center justify-between hover:bg-slate-50 transition';
+        li.innerHTML = `
+          <div class="flex items-center gap-3">
+            <input 
+              type="checkbox" 
+              ${task.completed ? 'checked' : ''} 
+              onchange="toggleTask(${task.id})"
+              class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+            >
+            <span class="${task.completed ? 'line-through text-slate-400' : 'text-slate-700 font-medium'} text-sm select-none">
+              ${task.title}
+            </span>
+          </div>
+          <button onclick="deleteTask(${task.id})" class="text-slate-400 hover:text-red-500 transition text-sm">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        `;
+        list.appendChild(li);
+      });
+
+      const pendingCount = tasks.filter(t => !t.completed).length;
+      countEl.textContent = `${pendingCount} tarefa${pendingCount !== 1 ? 's' : ''} pendente${pendingCount !== 1 ? 's' : ''}`;
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const value = input.value.trim();
+      if (value) {
+        addTask(value);
+        input.value = '';
+      }
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
