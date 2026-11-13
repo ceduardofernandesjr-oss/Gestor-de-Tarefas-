@@ -1,180 +1,36 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gestor de Tarefas</title>
-  <!-- Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Ícones Phosphor -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+Atue como um Engenheiro Frontend Sênior e UI/UX Designer especializado em produtos digitais de alta conversão.
 
-  <main class="w-full max-w-lg bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 sm:p-8">
-    <!-- Cabeçalho -->
-    <header class="flex items-center justify-between mb-8 border-b border-slate-700/60 pb-4">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-          <i class="ph ph-check-square-offset text-indigo-400"></i> Minhas Tarefas
-        </h1>
-        <p class="text-xs text-slate-400 mt-1">Organize suas atividades diárias com facilidade</p>
-      </div>
-      <span id="counter" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-700 text-slate-300">
-        0 pendentes
-      </span>
-    </header>
+Reescreva o código do aplicativo Gestor de Tarefas (index.html em arquivo único) transformando-o completamente em uma Dashboard de Fintech Premium (estilo Nubank Ultravioleta, Revolut Metal, Wise ou Mercury).
 
-    <!-- Formulário de Entrada -->
-    <form id="task-form" class="flex gap-2 mb-6">
-      <input
-        type="text"
-        id="task-input"
-        placeholder="O que você precisa fazer?"
-        class="flex-1 bg-slate-900/80 border border-slate-700 text-sm rounded-xl px-4 py-3 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-        required
-      />
-      <button
-        type="submit"
-        class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-3 rounded-xl transition flex items-center gap-1.5 shrink-0 shadow-lg shadow-indigo-600/30 active:scale-95"
-      >
-        <i class="ph ph-plus font-bold"></i> Criar
-      </button>
-    </form>
+Requisitos Visuais e Design System:
+- Tema: Dark mode elegante e corporativo ou Light clean institucional sofisticado (prefira um Dark Slate profundo, ex: Tailwind slate-950/slate-900).
+- Paleta de Cores: Base em tons de Azul Nobre/Safira/Índigo (#1E40AF, #2563EB, #3B82F6, #60A5FA) com acentos em ciano sutil para status ativos e cinzas neutros de alto contraste para tipografia.
+- Estilo: Glassmorphism refinado (backdrop-blur, bordas translúcidas de 1px com rgba, sombras suaves e profundas estilo glow azulado).
+- Ícones: Use Lucide Icons ou Phosphor Icons via CDN para um visual minimalista e vetorial fino.
+- Animações e Transições: Microinterações suaves (transition-all duration-300 ease-in-out), efeito hover nos cards com leve elevação ou borda iluminada, animações de entrada dos elementos e feedback visual imediato ao alternar tarefas.
 
-    <!-- Filtros -->
-    <nav class="flex items-center justify-between text-xs mb-4 text-slate-400 border-b border-slate-700/40 pb-3">
-      <div class="flex gap-2" id="filter-buttons">
-        <button data-filter="all" class="filter-btn text-indigo-400 font-semibold px-2 py-1 rounded hover:text-white transition">Todas</button>
-        <button data-filter="pending" class="filter-btn px-2 py-1 rounded hover:text-white transition">Pendentes</button>
-        <button data-filter="completed" class="filter-btn px-2 py-1 rounded hover:text-white transition">Concluídas</button>
-      </div>
-      <button id="clear-completed" class="hover:text-rose-400 transition text-[11px]">
-        Limpar concluídas
-      </button>
-    </nav>
+Estrutura da Dashboard:
+1. Topbar / Header de Fintech:
+   - Logo/Identidade elegante (ex: "FlowPay Tasks" ou "Nova Finance").
+   - Indicador de status/conectividade em tempo real com dot pulsante.
+   - Perfil de usuário resumido com avatar sutil e botão de configurações/ação rápida.
 
-    <!-- Lista de Tarefas -->
-    <ul id="task-list" class="space-y-2.5 max-h-80 overflow-y-auto pr-1"></ul>
+2. Widgets / KPIs de Produtividade Financeira:
+   - 3 a 4 cards métricos no topo: "Tarefas Ativas", "Concluídas Hoje", "Taxa de Produtividade (%)" e "Prioridade Alta".
+   - Mini barras de progresso ou badges modernas indicando o andamento das metas.
 
-    <!-- Estado Vazio -->
-    <div id="empty-state" class="text-center py-10 hidden">
-      <i class="ph ph-tray text-4xl text-slate-600"></i>
-      <p class="text-slate-400 text-sm mt-2">Nenhuma tarefa encontrada.</p>
-    </div>
-  </main>
+3. Painel Principal de Ações:
+   - Campo de entrada com visual de busca/comando profissional, categorização rápida (Tags: Financeiro, Operacional, Pessoal, Urgente) e seletor de prioridade.
+   - Barra de filtros moderna em formato de tabs/pills com contador integrado.
 
-  <script>
-    // Gerenciador de estado local
-    const STORAGE_KEY = "my_task_manager_data";
-    let tasks = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    let currentFilter = "all";
+4. Lista de Tarefas:
+   - Cards com espaçamento generoso, tags coloridas por categoria, data/hora de criação e indicador de prioridade sutil.
+   - Checkbox customizado com transição suave e efeito de risco elegante no texto ao concluir.
+   - Botões de ação rápida (excluir/concluir) acessíveis e responsivos.
 
-    const taskForm = document.getElementById("task-form");
-    const taskInput = document.getElementById("task-input");
-    const taskList = document.getElementById("task-list");
-    const emptyState = document.getElementById("empty-state");
-    const counter = document.getElementById("counter");
-    const clearCompletedBtn = document.getElementById("clear-completed");
-    const filterButtons = document.querySelectorAll(".filter-btn");
-
-    function saveTasks() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-      renderTasks();
-    }
-
-    function renderTasks() {
-      taskList.innerHTML = "";
-
-      const filteredTasks = tasks.filter(task => {
-        if (currentFilter === "pending") return !task.completed;
-        if (currentFilter === "completed") return task.completed;
-        return true;
-      });
-
-      if (filteredTasks.length === 0) {
-        emptyState.classList.remove("hidden");
-      } else {
-        emptyState.classList.add("hidden");
-      }
-
-      filteredTasks.forEach(task => {
-        const li = document.createElement("li");
-        li.className = "flex items-center justify-between p-3.5 bg-slate-900/50 hover:bg-slate-900/80 rounded-xl border border-slate-700/50 transition-all";
-
-        li.innerHTML = `
-          <div class="flex items-center gap-3 overflow-hidden">
-            <button onclick="toggleTask('${task.id}')" class="text-lg shrink-0 ${task.completed ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'}">
-              <i class="ph ${task.completed ? 'ph-check-circle-fill' : 'ph-circle'}"></i>
-            </button>
-            <span class="text-sm truncate select-none ${task.completed ? 'line-through text-slate-500' : 'text-slate-200'}">
-              ${escapeHtml(task.title)}
-            </span>
-          </div>
-          <button onclick="deleteTask('${task.id}')" class="text-slate-500 hover:text-rose-400 text-base transition shrink-0 p-1">
-            <i class="ph ph-trash"></i>
-          </button>
-        `;
-
-        taskList.appendChild(li);
-      });
-
-      // Atualiza o contador de pendências
-      const pendingCount = tasks.filter(t => !t.completed).length;
-      counter.textContent = `${pendingCount} pendente${pendingCount !== 1 ? 's' : ''}`;
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/[&<>'"]/g, tag => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        "\"": "&quot;"
-      }[tag] || tag));
-    }
-
-    window.toggleTask = function(id) {
-      tasks = tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
-      saveTasks();
-    };
-
-    window.deleteTask = function(id) {
-      tasks = tasks.filter(task => task.id !== id);
-      saveTasks();
-    };
-
-    taskForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const title = taskInput.value.trim();
-      if (!title) return;
-
-      tasks.unshift({
-        id: Date.now().toString(),
-        title,
-        completed: false
-      });
-
-      taskInput.value = "";
-      saveTasks();
-    });
-
-    clearCompletedBtn.addEventListener("click", () => {
-      tasks = tasks.filter(t => !t.completed);
-      saveTasks();
-    });
-
-    filterButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        filterButtons.forEach(b => b.classList.remove("text-indigo-400", "font-semibold"));
-        btn.classList.add("text-indigo-400", "font-semibold");
-        currentFilter = btn.dataset.filter;
-        renderTasks();
-      });
-    });
-
-    // Carga inicial
-    renderTasks();
-  </script>
-</body>
-</html>
+Requisitos Técnicos:
+- Mantenha tudo em um ÚNICO arquivo index.html pronto para deploy na Vercel.
+- Utilize Tailwind CSS via CDN e JavaScript puro (ES6+).
+- Persistência total dos dados no navegador via localStorage.
+- Totalmente responsivo para telas de celular (mobile-first) e desktop.
+- Forneça apenas o código final completo e executável, sem explicações intermediárias.
