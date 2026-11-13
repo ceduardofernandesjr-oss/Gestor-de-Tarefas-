@@ -3,115 +3,188 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apex Flow | Task Dashboard</title>
-  <!-- Tailwind CSS -->
+  <title>Apex Flow | Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <!-- Inter Font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
-          colors: {
-            fintech: {
-              950: '#060B18',
-              900: '#0B1528',
-              800: '#112240',
-              700: '#1D3557',
-              blue: '#2563EB',
-              accent: '#38BDF8',
-              glow: '#1E40AF'
-            }
-          }
-        }
-      }
-    }
-  </script>
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    .glass-card {
-      background: rgba(11, 21, 40, 0.75);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(56, 189, 248, 0.1);
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    }
-    .glass-input {
-      background: rgba(6, 11, 24, 0.6);
-      border: 1px solid rgba(56, 189, 248, 0.15);
-    }
-    .glass-input:focus {
-      border-color: #38BDF8;
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
-    }
-    .task-enter {
-      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #060B18; }
+    .glass-card { background: rgba(11, 21, 40, 0.85); border: 1px solid rgba(56, 189, 248, 0.12); }
+    .glass-input { background: rgba(6, 11, 24, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); }
   </style>
 </head>
+<body class="text-slate-100 min-h-screen pb-12">
 
-<body class="bg-fintech-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-fintech-accent selection:text-fintech-950 pb-12">
-
-  <!-- Background Glow FX -->
-  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-600/15 via-sky-500/5 to-transparent blur-3xl pointer-events-none -z-10"></div>
-
-  <!-- Topbar / Header -->
-  <header class="border-b border-slate-800/80 bg-fintech-950/80 backdrop-blur-md sticky top-0 z-20">
-    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-[#060B18]/90 sticky top-0 z-20 backdrop-blur-md">
+    <div class="max-w-xl mx-auto px-4 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center">
           <i class="ph ph-wallet text-xl text-white"></i>
         </div>
         <div>
-          <span class="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-            APEX<span class="text-fintech-accent font-normal">FLOW</span>
-          </span>
-          <span class="text-[10px] text-slate-400 block -mt-1 tracking-wider uppercase font-semibold">Workspace</span>
+          <span class="text-sm font-bold tracking-tight text-white">APEX <span class="text-sky-400">FLOW</span></span>
+          <span class="text-[10px] text-slate-400 block -mt-1 uppercase tracking-wider font-semibold">Workspace</span>
         </div>
       </div>
-
-      <div class="flex items-center gap-3">
-        <div class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          Sistema Operacional
-        </div>
-        <div class="w-8 h-8 rounded-full bg-fintech-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-300">
-          ED
-        </div>
+      <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-300">
+        ED
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="max-w-5xl mx-auto px-4 pt-8 space-y-6">
+  <!-- Conteudo Principal -->
+  <main class="max-w-xl mx-auto px-4 pt-6 space-y-4">
 
-    <!-- KPI Metric Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-      <div class="glass-card rounded-2xl p-4 transition-all duration-300 hover:border-slate-700">
-        <div class="flex items-center justify-between text-slate-400 mb-2">
-          <span class="text-xs font-medium">Total Geral</span>
-          <i class="ph ph-stack text-base text-slate-400"></i>
-        </div>
-        <div class="text-2xl font-bold tracking-tight" id="kpi-total">0</div>
-        <span class="text-[11px] text-slate-500">Fluxos registrados</span>
+    <!-- Metricas / KPIs -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="glass-card rounded-xl p-3.5">
+        <span class="text-xs text-slate-400 block">Em Aberto</span>
+        <span class="text-2xl font-bold text-blue-400" id="kpi-pending">0</span>
       </div>
-
-      <div class="glass-card rounded-2xl p-4 transition-all duration-300 hover:border-blue-500/30">
-        <div class="flex items-center justify-between text-blue-400 mb-2">
-          <span class="text-xs font-medium">Em Andamento</span>
-          <i class="ph ph-hourglass-medium text-base"></i>
-        </div>
-        <div class="text-2xl font-bold tracking-tight text-blue-400" id="kpi-pending">0</div>
-        <span class="text-[11px] text-slate-500">Demandas ativas</span>
+      <div class="glass-card rounded-xl p-3.5">
+        <span class="text-xs text-slate-400 block">Concluídas</span>
+        <span class="text-2xl font-bold text-emerald-400" id="kpi-completed">0</span>
       </div>
+    </div>
 
-      <div class="glass-card rounded-2xl p-4 transition-all duration
+    <!-- Campo de Adicionar Tarefa -->
+    <div class="glass-card rounded-xl p-4">
+      <form id="task-form" class="space-y-3">
+        <input 
+          type="text" 
+          id="task-input" 
+          placeholder="Descreva a nova demanda..." 
+          class="w-full glass-input text-white text-sm rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-sky-400 placeholder:text-slate-500" 
+          required
+        >
+        <div class="flex gap-2">
+          <select id="task-category" class="glass-input text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none flex-1">
+            <option value="Operacional" class="bg-slate-900">Operacional</option>
+            <option value="Financeiro" class="bg-slate-900">Financeiro</option>
+            <option value="Urgente" class="bg-slate-900">Urgente</option>
+          </select>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+            Adicionar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Filtros -->
+    <div class="flex items-center justify-between text-xs pt-1">
+      <div class="flex gap-1.5 bg-slate-900/80 p-1 rounded-lg border border-slate-800">
+        <button onclick="setFilter('all')" id="btn-all" class="px-2.5 py-1 rounded bg-blue-600/30 text-white font-medium">Todas</button>
+        <button onclick="setFilter('pending')" id="btn-pending" class="px-2.5 py-1 rounded text-slate-400">Abertas</button>
+        <button onclick="setFilter('completed')" id="btn-completed" class="px-2.5 py-1 rounded text-slate-400">Concluídas</button>
+      </div>
+      <button onclick="clearCompleted()" class="text-slate-500 hover:text-rose-400 transition">
+        Limpar concluídas
+      </button>
+    </div>
+
+    <!-- Lista de Tarefas -->
+    <div class="space-y-2" id="task-feed"></div>
+
+  </main>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('apex_tasks')) || [];
+    let activeFilter = 'all';
+
+    const form = document.getElementById('task-form');
+    const input = document.getElementById('task-input');
+    const category = document.getElementById('task-category');
+    const feed = document.getElementById('task-feed');
+    const kpiPending = document.getElementById('kpi-pending');
+    const kpiCompleted = document.getElementById('kpi-completed');
+
+    function save() {
+      localStorage.setItem('apex_tasks', JSON.stringify(tasks));
+      render();
+    }
+
+    function addTask(title, cat) {
+      tasks.unshift({ id: Date.now(), title, category: cat, completed: false });
+      save();
+    }
+
+    function toggleTask(id) {
+      tasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      save();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      save();
+    }
+
+    function clearCompleted() {
+      tasks = tasks.filter(t => !t.completed);
+      save();
+    }
+
+    function setFilter(f) {
+      activeFilter = f;
+      ['all', 'pending', 'completed'].forEach(key => {
+        const btn = document.getElementById('btn-' + key);
+        if (key === f) {
+          btn.className = "px-2.5 py-1 rounded bg-blue-600/30 text-white font-medium";
+        } else {
+          btn.className = "px-2.5 py-1 rounded text-slate-400";
+        }
+      });
+      render();
+    }
+
+    function render() {
+      const completedCount = tasks.filter(t => t.completed).length;
+      kpiCompleted.textContent = completedCount;
+      kpiPending.textContent = tasks.length - completedCount;
+
+      const filtered = tasks.filter(t => {
+        if (activeFilter === 'pending') return !t.completed;
+        if (activeFilter === 'completed') return t.completed;
+        return true;
+      });
+
+      feed.innerHTML = '';
+
+      if (filtered.length === 0) {
+        feed.innerHTML = '<div class="glass-card rounded-xl p-6 text-center text-xs text-slate-500">Nenhuma tarefa encontrada.</div>';
+        return;
+      }
+
+      filtered.forEach(t => {
+        const div = document.createElement('div');
+        div.className = `glass-card rounded-xl p-3 flex items-center justify-between gap-3 ${t.completed ? 'opacity-50' : ''}`;
+        div.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <button onclick="toggleTask(${t.id})" class="w-5 h-5 rounded border flex items-center justify-center ${t.completed ? 'bg-blue-600 border-blue-500' : 'border-slate-600'}">
+              ${t.completed ? '<i class="ph ph-check text-xs"></i>' : ''}
+            </button>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm truncate ${t.completed ? 'line-through text-slate-400' : 'text-slate-200'}">${t.title}</p>
+              <span class="text-[10px] text-sky-400 font-semibold uppercase">${t.category}</span>
+            </div>
+          </div>
+          <button onclick="deleteTask(${t.id})" class="text-slate-500 hover:text-rose-400 p-1">
+            <i class="ph ph-trash"></i>
+          </button>
+        `;
+        feed.appendChild(div);
+      });
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (input.value.trim()) {
+        addTask(input.value.trim(), category.value);
+        input.value = '';
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
