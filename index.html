@@ -1,36 +1,117 @@
-Atue como um Engenheiro Frontend Sênior e UI/UX Designer especializado em produtos digitais de alta conversão.
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Flow | Task Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-Reescreva o código do aplicativo Gestor de Tarefas (index.html em arquivo único) transformando-o completamente em uma Dashboard de Fintech Premium (estilo Nubank Ultravioleta, Revolut Metal, Wise ou Mercury).
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            fintech: {
+              950: '#060B18',
+              900: '#0B1528',
+              800: '#112240',
+              700: '#1D3557',
+              blue: '#2563EB',
+              accent: '#38BDF8',
+              glow: '#1E40AF'
+            }
+          }
+        }
+      }
+    }
+  </script>
 
-Requisitos Visuais e Design System:
-- Tema: Dark mode elegante e corporativo ou Light clean institucional sofisticado (prefira um Dark Slate profundo, ex: Tailwind slate-950/slate-900).
-- Paleta de Cores: Base em tons de Azul Nobre/Safira/Índigo (#1E40AF, #2563EB, #3B82F6, #60A5FA) com acentos em ciano sutil para status ativos e cinzas neutros de alto contraste para tipografia.
-- Estilo: Glassmorphism refinado (backdrop-blur, bordas translúcidas de 1px com rgba, sombras suaves e profundas estilo glow azulado).
-- Ícones: Use Lucide Icons ou Phosphor Icons via CDN para um visual minimalista e vetorial fino.
-- Animações e Transições: Microinterações suaves (transition-all duration-300 ease-in-out), efeito hover nos cards com leve elevação ou borda iluminada, animações de entrada dos elementos e feedback visual imediato ao alternar tarefas.
+  <style>
+    .glass-card {
+      background: rgba(11, 21, 40, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.1);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+    .glass-input {
+      background: rgba(6, 11, 24, 0.6);
+      border: 1px solid rgba(56, 189, 248, 0.15);
+    }
+    .glass-input:focus {
+      border-color: #38BDF8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+    }
+    .task-enter {
+      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
 
-Estrutura da Dashboard:
-1. Topbar / Header de Fintech:
-   - Logo/Identidade elegante (ex: "FlowPay Tasks" ou "Nova Finance").
-   - Indicador de status/conectividade em tempo real com dot pulsante.
-   - Perfil de usuário resumido com avatar sutil e botão de configurações/ação rápida.
+<body class="bg-fintech-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-fintech-accent selection:text-fintech-950 pb-12">
 
-2. Widgets / KPIs de Produtividade Financeira:
-   - 3 a 4 cards métricos no topo: "Tarefas Ativas", "Concluídas Hoje", "Taxa de Produtividade (%)" e "Prioridade Alta".
-   - Mini barras de progresso ou badges modernas indicando o andamento das metas.
+  <!-- Background Glow FX -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-600/15 via-sky-500/5 to-transparent blur-3xl pointer-events-none -z-10"></div>
 
-3. Painel Principal de Ações:
-   - Campo de entrada com visual de busca/comando profissional, categorização rápida (Tags: Financeiro, Operacional, Pessoal, Urgente) e seletor de prioridade.
-   - Barra de filtros moderna em formato de tabs/pills com contador integrado.
+  <!-- Topbar / Header -->
+  <header class="border-b border-slate-800/80 bg-fintech-950/80 backdrop-blur-md sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="ph ph-wallet text-xl text-white"></i>
+        </div>
+        <div>
+          <span class="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
+            APEX<span class="text-fintech-accent font-normal">FLOW</span>
+          </span>
+          <span class="text-[10px] text-slate-400 block -mt-1 tracking-wider uppercase font-semibold">Workspace</span>
+        </div>
+      </div>
 
-4. Lista de Tarefas:
-   - Cards com espaçamento generoso, tags coloridas por categoria, data/hora de criação e indicador de prioridade sutil.
-   - Checkbox customizado com transição suave e efeito de risco elegante no texto ao concluir.
-   - Botões de ação rápida (excluir/concluir) acessíveis e responsivos.
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Sistema Operacional
+        </div>
+        <div class="w-8 h-8 rounded-full bg-fintech-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-300">
+          ED
+        </div>
+      </div>
+    </div>
+  </header>
 
-Requisitos Técnicos:
-- Mantenha tudo em um ÚNICO arquivo index.html pronto para deploy na Vercel.
-- Utilize Tailwind CSS via CDN e JavaScript puro (ES6+).
-- Persistência total dos dados no navegador via localStorage.
-- Totalmente responsivo para telas de celular (mobile-first) e desktop.
-- Forneça apenas o código final completo e executável, sem explicações intermediárias.
+  <!-- Main Content -->
+  <main class="max-w-5xl mx-auto px-4 pt-8 space-y-6">
+
+    <!-- KPI Metric Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+      <div class="glass-card rounded-2xl p-4 transition-all duration-300 hover:border-slate-700">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Total Geral</span>
+          <i class="ph ph-stack text-base text-slate-400"></i>
+        </div>
+        <div class="text-2xl font-bold tracking-tight" id="kpi-total">0</div>
+        <span class="text-[11px] text-slate-500">Fluxos registrados</span>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4 transition-all duration-300 hover:border-blue-500/30">
+        <div class="flex items-center justify-between text-blue-400 mb-2">
+          <span class="text-xs font-medium">Em Andamento</span>
+          <i class="ph ph-hourglass-medium text-base"></i>
+        </div>
+        <div class="text-2xl font-bold tracking-tight text-blue-400" id="kpi-pending">0</div>
+        <span class="text-[11px] text-slate-500">Demandas ativas</span>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4 transition-all duration
