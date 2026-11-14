@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.gestor_de_tarefas_sepia.twa",
+      "sha256_cert_fingerprints": [
+        "B0:65:19:2A:31:89:86:53:8E:7D:B5:3D:72:36:67:5E:4F:7C:B7:CB:1F:1D:56:CB:35:AE:BB:C7:12:79:57:C4"
+      ]
+    }
+  }
+]
