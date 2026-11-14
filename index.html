@@ -416,6 +416,26 @@
     </div>
   </div>
 
+  <!-- Boas-vindas (primeira abertura): login opcional com Google -->
+  <div id="welcome" class="hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title" tabindex="-1"
+       style="position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto">
+    <div class="min-h-full max-w-sm mx-auto px-6 flex flex-col justify-center" style="padding-top:max(40px,env(safe-area-inset-top));padding-bottom:max(32px,env(safe-area-inset-bottom))">
+      <img src="icons/logo-192.png" width="88" height="88" alt="" aria-hidden="true" class="rounded-3xl" style="width:88px;height:88px;box-shadow:0 12px 28px rgba(79,70,229,.3)">
+      <h1 id="welcome-title" class="text-3xl font-bold tracking-tight mt-6">Boas-vindas ao Prio</h1>
+      <p class="text-muted mt-2">Organize, priorize e conclua suas tarefas.</p>
+      <ul class="mt-7 space-y-4 text-sm">
+        <li class="flex items-center gap-3"><span class="w-9 h-9 rounded-xl flex items-center justify-center flex-none" style="background:var(--primary-soft);color:var(--primary-ink)"><i data-lucide="refresh-cw" class="w-4 h-4"></i></span><span>Suas tarefas no celular e no computador</span></li>
+        <li class="flex items-center gap-3"><span class="w-9 h-9 rounded-xl flex items-center justify-center flex-none" style="background:var(--primary-soft);color:var(--primary-ink)"><i data-lucide="cloud" class="w-4 h-4"></i></span><span>Guardadas na sua conta, sem perder nada ao trocar de aparelho</span></li>
+        <li class="flex items-center gap-3"><span class="w-9 h-9 rounded-xl flex items-center justify-center flex-none" style="background:var(--primary-soft);color:var(--primary-ink)"><i data-lucide="wifi-off" class="w-4 h-4"></i></span><span>Funciona também sem internet</span></li>
+      </ul>
+      <div class="mt-9 space-y-2">
+        <button id="welcome-login" data-act="welcomeLogin" class="btn btn-primary w-full" style="gap:10px"><span class="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-none" id="welcome-g"></span><span>Entrar com Google</span></button>
+        <button data-act="welcomeSkip" class="btn btn-ghost w-full">Continuar sem conta</button>
+      </div>
+      <p class="text-xs text-muted mt-4 text-center">Sem conta, suas tarefas ficam salvas só neste aparelho. Você pode entrar depois em Configurações.</p>
+    </div>
+  </div>
+
   <!-- Aviso breve com desfazer -->
   <div id="toast" role="status" aria-live="polite">
     <span id="toast-message" class="text-sm"></span>
@@ -631,6 +651,7 @@
     const SUPABASE_URL = 'https://zkhdaeopbvkdhsxwjsio.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_MVtE7Mq9Xq2Cr-a9DPbxkQ_NYtcvjyf';
     const SYNC_KEY = 'app_sync_v1';
+    const WELCOME_KEY = 'app_welcome_v1';
     const Sync = (() => {
       let sb = null, user = null, state = 'off', lastAt = null, timer = null, running = false, again = false;
       function client() {
@@ -782,6 +803,20 @@
         if (!pic) refreshIcons();
       }
       function toast(msg) { if (typeof ToastUndo !== 'undefined') ToastUndo.show(msg); }
+      const welcomeSeen = () => { try { return !!localStorage.getItem(WELCOME_KEY); } catch (e) { return true; } };
+      const markWelcome = () => { try { localStorage.setItem(WELCOME_KEY, '1'); } catch (e) {} };
+      function showWelcome() {
+        const w = $('welcome'); if (!w) return;
+        $('welcome-g').innerHTML = GOOGLE_G;
+        w.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+        refreshIcons(); setTimeout(() => $('welcome-login').focus(), 60);
+      }
+      function hideWelcome() {
+        const w = $('welcome'); if (!w || w.classList.contains('hidden')) return;
+        w.classList.add('hidden'); document.body.style.overflow = '';
+      }
+      const welcomeOpen = () => { const w = $('welcome'); return !!w && !w.classList.contains('hidden'); };
+      function skipWelcome() { markWelcome(); hideWelcome(); }
 
       function init() {
         const c = client();
@@ -792,6 +827,8 @@
           user = session ? session.user : null;
           if (!user) { state = 'off'; }
           renderAccount(); renderUserButton();
+          if (user) { markWelcome(); hideWelcome(); }
+          else if (event === 'INITIAL_SESSION' && !welcomeSeen()) showWelcome();
           if (user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
             if (event === 'SIGNED_IN' && !was) toast(`Conectado como ${(user.user_metadata || {}).full_name || user.email}`);
             setTimeout(run, 0);
@@ -802,7 +839,7 @@
         window.addEventListener('offline', () => { if (user) { state = 'offline'; renderAccount(); } });
         setInterval(() => { if (!document.hidden) schedule(0); }, 60000);
       }
-      return { init, schedule, run: () => run(), signIn, signOut, renderAccount };
+      return { init, schedule, run: () => run(), signIn, signOut, renderAccount, skipWelcome, welcomeOpen };
     })();
 
     // =====================================================================
@@ -1466,6 +1503,8 @@
       newProject: () => newProject(),
       export: () => exportBackup(),
       login: () => Sync.signIn(),
+      welcomeLogin: () => Sync.signIn(),
+      welcomeSkip: () => Sync.skipWelcome(),
       logout: () => Sync.signOut(),
       syncNow: () => Sync.run(),
       theme: (id, v) => { try { localStorage.setItem(KEYS.theme, v); } catch (e) {} applyTheme(v); renderTheme(); }
@@ -1493,6 +1532,7 @@
       if (e.key === 'Enter' && e.target.id === 'd-sub-input') { e.preventDefault(); addSubtask(e.target.dataset.subFor); }
       if (e.key === 'Enter' && e.target.id === 'c-sub-input') { e.preventDefault(); addCreateSub(); }
       if (e.key === 'Escape') {
+        if (Sync.welcomeOpen()) { Sync.skipWelcome(); return; }
         if ($('create-panel').classList.contains('open')) closeSheet('create');
         else if ($('filters-panel').classList.contains('open')) closeSheet('filters');
         else if ($('settings-panel').classList.contains('open')) closeSheet('settings');
