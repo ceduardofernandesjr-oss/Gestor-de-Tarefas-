@@ -1,7 +1,7 @@
 // Service worker do Gestor de Tarefas: permite uso offline e instalação como app.
 // Páginas: rede primeiro (deploys novos aparecem logo), com cache como reserva offline.
 // Demais arquivos (ícones, Tailwind, Lucide, fontes): cache primeiro, atualizando em segundo plano.
-const CACHE = 'gestor-tarefas-v1';
+const CACHE = 'gestor-tarefas-v2';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icons/favicon-32.png', 'icons/logo-96.png',
               'icons/logo-192.png', 'icons/logo-512.png', 'icons/apple-touch-icon.png'];
 
@@ -43,6 +43,8 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+  // Login e sincronização (Supabase) e páginas de login do Google: sempre direto na rede, nunca do cache.
+  if (url.hostname.endsWith('.supabase.co') || url.hostname.endsWith('.supabase.in') || url.hostname === 'accounts.google.com') return;
   const sameOrigin = url.origin === self.location.origin;
   const isPage = req.mode === 'navigate' || (sameOrigin && (url.pathname.endsWith('/') || url.pathname.endsWith('.html')));
   e.respondWith(isPage ? networkFirst(req) : staleWhileRevalidate(req));

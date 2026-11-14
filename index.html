@@ -12,6 +12,7 @@
   <title>Prio | Gestor de tarefas</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -237,7 +238,7 @@
           </div>
           <div class="flex items-center gap-1">
             <button id="hdr-new" data-act="new" class="btn btn-primary btn-compact"><i data-lucide="plus" class="w-4 h-4"></i><span>Nova</span></button>
-            <button data-act="settings" class="btn btn-ghost" style="min-width:44px;padding:0" aria-label="Perfil e configurações"><i data-lucide="user" class="w-5 h-5"></i></button>
+            <button id="hdr-user" data-act="settings" class="btn btn-ghost" style="min-width:44px;padding:0" aria-label="Perfil e configurações"><i data-lucide="user" class="w-5 h-5"></i></button>
           </div>
         </div>
       </header>
@@ -400,12 +401,16 @@
     </div>
     <div class="space-y-5">
       <div>
+        <span class="label">Conta</span>
+        <div id="account-box"></div>
+      </div>
+      <div>
         <span class="label">Tema</span>
         <div id="theme-group" class="grid grid-cols-3 gap-2" role="group" aria-label="Tema"></div>
       </div>
       <div>
         <span class="label">Dados</span>
-        <p class="text-xs text-muted mb-2">Suas tarefas ficam salvas somente neste aparelho (navegador). Não há sincronização com outros dispositivos.</p>
+        <p id="data-note" class="text-xs text-muted mb-2">Suas tarefas ficam salvas somente neste aparelho (navegador). Não há sincronização com outros dispositivos.</p>
         <button data-act="export" class="btn btn-soft w-full"><i data-lucide="download" class="w-4 h-4"></i> Exportar backup (JSON)</button>
       </div>
     </div>
@@ -591,7 +596,10 @@
         p = Array.isArray(lp) ? lp : DEFAULT_PROJECTS;
       }
       tasks = t.map(normalizeTask);
-      projects = p.map(x => ({ id: String(x.id), name: String(x.name || 'Projeto'), color: x.color || '#4F46E5', description: x.description || '', archived: !!x.archived }));
+      projects = p.map(normalizeProject);
+    }
+    function normalizeProject(x) {
+      return { id: String(x.id), name: String(x.name || 'Projeto'), color: x.color || '#4F46E5', description: x.description || '', archived: !!x.archived };
     }
     function persist() {
       try {
@@ -600,6 +608,7 @@
         storageFailed = false;
       } catch (e) { storageFailed = true; }
       updateBanner();
+      try { Sync.schedule(); } catch (e) {} // Sync pode ainda não existir durante a inicialização
       return !storageFailed;
     }
     function save() { persist(); renderAll(); }
@@ -612,6 +621,189 @@
       b.textContent = msg;
       b.classList.toggle('hidden', !msg);
     }
+
+
+    // =====================================================================
+    // CONTA E SINCRONIZAÇÃO (opcional: login com Google via Supabase)
+    // Local-first: o app continua funcionando só com o localStorage. Com login,
+    // cada tarefa/projeto alterado é enviado e o que mudou em outros aparelhos é trazido.
+    // =====================================================================
+    const SUPABASE_URL = 'https://zkhdaeopbvkdhsxwjsio.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_MVtE7Mq9Xq2Cr-a9DPbxkQ_NYtcvjyf';
+    const SYNC_KEY = 'app_sync_v1';
+    const Sync = (() => {
+      let sb = null, user = null, state = 'off', lastAt = null, timer = null, running = false, again = false;
+      function client() {
+        if (sb) return sb;
+        if (!window.supabase || !window.supabase.createClient) return null;
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+          auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        });
+        return sb;
+      }
+      const readMeta = () => { try { return JSON.parse(localStorage.getItem(SYNC_KEY)) || null; } catch (e) { return null; } };
+      const writeMeta = m => { try { localStorage.setItem(SYNC_KEY, JSON.stringify(m)); } catch (e) {} };
+      const listOf = kind => kind === 'task' ? tasks : projects;
+      const normOf = (kind, d) => kind === 'task' ? normalizeTask(d) : normalizeProject(d);
+      const snapOf = list => { const o = {}; list.forEach(x => { o[x.id] = JSON.stringify(x); }); return o; };
+
+      async function pullRows(since) {
+        const rows = [];
+        for (let from = 0; ; from += 1000) {
+          let q = sb.from('prio_items').select('kind,id,data,deleted,updated_at').order('updated_at', { ascending: true }).range(from, from + 999);
+          if (since) q = q.gte('updated_at', since);
+          const { data, error } = await q;
+          if (error) throw error;
+          rows.push(...data);
+          if (data.length < 1000) break;
+        }
+        return rows;
+      }
+
+      async function run() {
+        if (!user || !client()) return;
+        if (navigator.onLine === false) { state = 'offline'; renderAccount(); return; }
+        if (running) { again = true; return; }
+        running = true; state = 'syncing'; renderAccount();
+        try {
+          let meta = readMeta();
+          if (!meta || meta.userId !== user.id) meta = { userId: user.id, since: null, first: true, snap: { task: {}, project: {} } };
+          // 1) Traz o que mudou na nuvem (com 2 min de folga; aplicar de novo não tem efeito).
+          const since = meta.since ? new Date(new Date(meta.since).getTime() - 120000).toISOString() : null;
+          const rows = await pullRows(since);
+          let changedLocal = false, maxTs = meta.since;
+          for (const r of rows) {
+            if (!maxTs || r.updated_at > maxTs) maxTs = r.updated_at;
+            if (r.kind !== 'task' && r.kind !== 'project') continue;
+            const list = listOf(r.kind), snap = meta.snap[r.kind];
+            const idx = list.findIndex(x => x.id === r.id);
+            const localJson = idx >= 0 ? JSON.stringify(list[idx]) : null;
+            // Alterado aqui desde a última sincronização? Então vale o deste aparelho (é enviado logo abaixo).
+            // Na primeira sincronização de uma conta, vale o que já está na nuvem.
+            const localDirty = !meta.first && localJson !== (snap[r.id] === undefined ? null : snap[r.id]);
+            if (localDirty) continue;
+            if (r.deleted) {
+              if (idx >= 0) { list.splice(idx, 1); changedLocal = true; }
+              delete snap[r.id];
+            } else {
+              const obj = normOf(r.kind, r.data || {});
+              const json = JSON.stringify(obj);
+              if (json !== localJson) { if (idx >= 0) list[idx] = obj; else list.push(obj); changedLocal = true; }
+              snap[r.id] = json;
+            }
+          }
+          // 2) Envia o que mudou neste aparelho (novos, alterados e removidos).
+          const out = [];
+          for (const kind of ['task', 'project']) {
+            const cur = snapOf(listOf(kind)), snap = meta.snap[kind];
+            for (const id in cur) if (cur[id] !== snap[id]) out.push({ user_id: user.id, kind, id, data: JSON.parse(cur[id]), deleted: false, _j: cur[id] });
+            for (const id in snap) if (!(id in cur)) out.push({ user_id: user.id, kind, id, data: {}, deleted: true });
+          }
+          for (let i = 0; i < out.length; i += 500) {
+            const chunk = out.slice(i, i + 500);
+            const { error } = await sb.from('prio_items').upsert(chunk.map(({ _j, ...row }) => row), { onConflict: 'user_id,kind,id' });
+            if (error) throw error;
+            chunk.forEach(r => { if (r.deleted) delete meta.snap[r.kind][r.id]; else meta.snap[r.kind][r.id] = r._j; });
+          }
+          meta.since = maxTs; meta.first = false;
+          writeMeta(meta);
+          if (changedLocal) { syncing = true; persist(); syncing = false; renderAll(); }
+          state = 'ok'; lastAt = new Date();
+        } catch (e) {
+          console.warn('Sincronização falhou', e);
+          state = navigator.onLine === false ? 'offline' : 'error';
+        } finally {
+          running = false;
+          renderAccount();
+          if (again) { again = false; schedule(300); }
+        }
+      }
+      let syncing = false;
+      function schedule(ms) {
+        if (!user || syncing) return;
+        clearTimeout(timer);
+        timer = setTimeout(run, ms == null ? 1200 : ms);
+      }
+
+      async function signIn() {
+        const c = client();
+        if (!c) { toast('Sem conexão com o serviço de login. Tente de novo com internet.'); return; }
+        if (navigator.onLine === false) { toast('Conecte-se à internet para entrar.'); return; }
+        const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+        if (error) toast('Não foi possível abrir o login do Google.');
+      }
+      async function signOut() {
+        const c = client();
+        try { if (c) await c.auth.signOut(); } catch (e) {}
+        try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
+        user = null; state = 'off'; renderAccount(); renderUserButton();
+        toast('Você saiu. As tarefas continuam salvas neste aparelho.');
+      }
+
+      const fmtTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const GOOGLE_G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+      function statusText() {
+        if (state === 'syncing') return 'Sincronizando…';
+        if (state === 'offline') return 'Sem conexão. Sincroniza quando a internet voltar.';
+        if (state === 'error') return 'Não foi possível sincronizar agora. Tentaremos de novo.';
+        if (state === 'ok' && lastAt) return `Sincronizado às ${fmtTime(lastAt)}`;
+        return 'Conectado';
+      }
+      function renderAccount() {
+        const box = $('account-box'); if (!box) return;
+        const note = $('data-note');
+        if (!user) {
+          box.innerHTML = client()
+            ? `<button data-act="login" class="btn btn-soft w-full" style="gap:10px">${GOOGLE_G}<span>Entrar com Google</span></button>
+               <p class="text-xs text-muted mt-2">Opcional. Entre para sincronizar suas tarefas entre celular e computador. Sem conta, tudo continua salvo só neste aparelho.</p>`
+            : `<p class="text-xs text-muted">O login fica disponível quando o app abre com internet.</p>`;
+          if (note) note.textContent = 'Suas tarefas ficam salvas somente neste aparelho (navegador). Entre com o Google para sincronizar com outros dispositivos.';
+          return;
+        }
+        const m = user.user_metadata || {};
+        const name = m.full_name || m.name || 'Conta Google';
+        const pic = m.avatar_url || m.picture || '';
+        box.innerHTML = `<div class="flex items-center gap-3">
+            ${pic ? `<img src="${esc(pic)}" alt="" referrerpolicy="no-referrer" class="w-10 h-10 rounded-full">` : `<span class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--primary);color:#fff;font-weight:600">${esc(name.charAt(0).toUpperCase())}</span>`}
+            <div class="min-w-0"><div class="text-sm font-semibold truncate">${esc(name)}</div><div class="text-xs text-muted truncate">${esc(user.email || '')}</div></div>
+          </div>
+          <p id="sync-status" class="text-xs text-muted mt-2" role="status">${esc(statusText())}</p>
+          <div class="grid grid-cols-2 gap-2 mt-3">
+            <button data-act="syncNow" class="btn btn-soft">Sincronizar agora</button>
+            <button data-act="logout" class="btn btn-soft">Sair</button>
+          </div>`;
+        if (note) note.textContent = 'Suas tarefas ficam salvas neste aparelho e sincronizadas com a sua conta Google.';
+      }
+      function renderUserButton() {
+        const b = $('hdr-user'); if (!b) return;
+        const pic = user && (user.user_metadata || {}).avatar_url;
+        b.innerHTML = pic ? `<img src="${esc(pic)}" alt="" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full">` : '<i data-lucide="user" class="w-5 h-5"></i>';
+        b.setAttribute('aria-label', user ? 'Conta e configurações' : 'Perfil e configurações');
+        if (!pic) refreshIcons();
+      }
+      function toast(msg) { if (typeof ToastUndo !== 'undefined') ToastUndo.show(msg); }
+
+      function init() {
+        const c = client();
+        renderAccount();
+        if (!c) return;
+        c.auth.onAuthStateChange((event, session) => {
+          const was = user && user.id;
+          user = session ? session.user : null;
+          if (!user) { state = 'off'; }
+          renderAccount(); renderUserButton();
+          if (user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+            if (event === 'SIGNED_IN' && !was) toast(`Conectado como ${(user.user_metadata || {}).full_name || user.email}`);
+            setTimeout(run, 0);
+          }
+        });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) schedule(200); });
+        window.addEventListener('online', () => schedule(200));
+        window.addEventListener('offline', () => { if (user) { state = 'offline'; renderAccount(); } });
+        setInterval(() => { if (!document.hidden) schedule(0); }, 60000);
+      }
+      return { init, schedule, run: () => run(), signIn, signOut, renderAccount };
+    })();
 
     // =====================================================================
     // FORMATAÇÃO
@@ -1255,7 +1447,7 @@
       setStatus: (id, v) => { filters.status = v; renderTasks(); refreshIcons(); },
       clearFilter: (id, v) => { filters[v] = defaultFilters()[v]; renderTasks(); refreshIcons(); },
       openFilters: () => { openSheet('filters'); setTimeout(() => $('filters-panel').focus(), 60); },
-      settings: () => { renderTheme(); refreshIcons(); openSheet('settings'); setTimeout(() => $('settings-panel').focus(), 60); },
+      settings: () => { renderTheme(); Sync.renderAccount(); refreshIcons(); openSheet('settings'); setTimeout(() => $('settings-panel').focus(), 60); },
       closeSheet: (id, v) => closeSheet(v),
       toggleAdv: () => { setAdvanced($('c-adv').classList.contains('hidden')); saveDraft(); },
       createAnother: () => createFromForm(true),
@@ -1273,6 +1465,9 @@
       cDelSub: (id, v, el) => { createSubs = createSubs.filter(s => s.id !== el.dataset.sid); renderCreateSubs(); saveDraft(); },
       newProject: () => newProject(),
       export: () => exportBackup(),
+      login: () => Sync.signIn(),
+      logout: () => Sync.signOut(),
+      syncNow: () => Sync.run(),
       theme: (id, v) => { try { localStorage.setItem(KEYS.theme, v); } catch (e) {} applyTheme(v); renderTheme(); }
     };
     document.addEventListener('click', e => {
@@ -1318,6 +1513,7 @@
     loadState();
     persist();
     go('home', true);
+    Sync.init();
   </script>
   <script>
     // Registra o service worker (uso offline e instalação). Falhas não afetam o app.
