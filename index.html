@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/logo-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <title>Tarefas | Gestor Minimalista</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -1113,6 +1114,12 @@
     loadState();
     persist();
     go('home', true);
+  </script>
+  <script>
+    // Registra o service worker (uso offline e instalação). Falhas não afetam o app.
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+    }
   </script>
 </body>
 </html>
