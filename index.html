@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#4F46E5">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -77,6 +77,10 @@
 
     /* ===== Base ===== */
     html { -webkit-text-size-adjust: 100%; }
+    html, body { touch-action: pan-x pan-y; } /* sem zoom por pinça nem toque duplo */
+    @supports (-webkit-touch-callout: none) { /* iOS: campos com 16px evitam o zoom automático ao focar */
+      .field, .search, textarea.field, select.field, input.field { font-size: 16px; }
+    }
     body { background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
     body.lock { overflow: hidden; }
     :focus-visible { outline: 2px solid var(--primary-ink); outline-offset: 2px; }
