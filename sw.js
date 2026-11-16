@@ -1,7 +1,7 @@
 // Service worker do Gestor de Tarefas: permite uso offline e instalação como app.
 // Páginas: rede primeiro (deploys novos aparecem logo), com cache como reserva offline.
 // Demais arquivos (ícones, Tailwind, Lucide, fontes): cache primeiro, atualizando em segundo plano.
-const CACHE = 'gestor-tarefas-v4';
+const CACHE = 'gestor-tarefas-v5';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icons/favicon-32.png', 'icons/logo-96.png',
               'icons/logo-192.png', 'icons/logo-512.png', 'icons/apple-touch-icon.png'];
 

@@ -819,8 +819,19 @@
       function skipWelcome() { markWelcome(); hideWelcome(); }
 
       function init() {
+        // Se o login voltar com erro (ex.: configuração do Google), avisa em vez de falhar em silêncio
+        let authErr = null;
+        try {
+          const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.replace(/^#/, ''));
+          authErr = q.get('error_description') || h.get('error_description') || q.get('error') || h.get('error');
+        } catch (e) {}
         const c = client();
         renderAccount();
+        if (authErr) {
+          console.warn('Login:', authErr);
+          setTimeout(() => toast('Não foi possível entrar com Google agora. Tente de novo em instantes.'), 600);
+          try { history.replaceState(null, '', location.pathname); } catch (e) {}
+        }
         if (!c) return;
         c.auth.onAuthStateChange((event, session) => {
           const was = user && user.id;
