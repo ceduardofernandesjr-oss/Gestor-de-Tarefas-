@@ -1485,6 +1485,55 @@
       return { build, googleUrl, ics, openGoogle, downloadIcs };
     })();
 
+    // ---- Enviar tarefa (WhatsApp, Gmail e compartilhar do sistema) ----
+    const Share = (() => {
+      const PRIO = { normal: 'Normal', high: 'Alta', urgent: 'Urgente' };
+      const REC = { daily: 'repete todo dia', weekly: 'repete toda semana', monthly: 'repete todo mês' };
+      const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      function text(t, bold) {
+        const b = v => bold ? `*${v}*` : v;
+        const L = [b(t.title)];
+        if (t.plannedDate) {
+          const d = parseDate(t.plannedDate).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+          let when = `📅 ${cap(d)}`;
+          if (t.startTime) when += ` às ${t.startTime}${t.duration ? ` (${fmtDur(Number(t.duration))})` : ''}`;
+          if (REC[t.recurrence]) when += `, ${REC[t.recurrence]}`;
+          L.push(when);
+        }
+        if (t.dueDate) L.push(`⏳ Prazo: ${parseDate(t.dueDate).toLocaleDateString('pt-BR')}`);
+        const proj = projects.find(p => p.id === t.projectId);
+        L.push(`Prioridade: ${PRIO[t.priority] || 'Normal'}${proj ? ` · Projeto: ${proj.name}` : ''}`);
+        if (t.description) L.push('', t.description);
+        if (t.subtasks && t.subtasks.length) {
+          L.push('', b('Subtarefas'));
+          t.subtasks.forEach(x => L.push(`${x.completed ? '✅' : '⬜'} ${x.title}`));
+        }
+        L.push('', `Enviado pelo Prio · ${location.origin}`);
+        return L.join('\n');
+      }
+      function openLink(url) {
+        const a = document.createElement('a');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+      function whatsapp(id) {
+        const t = tasks.find(x => x.id === id); if (!t) return;
+        openLink('https://wa.me/?text=' + encodeURIComponent(text(t, true)));
+      }
+      function gmail(id) {
+        const t = tasks.find(x => x.id === id); if (!t) return;
+        const su = `Tarefa: ${t.title}`, body = text(t, false);
+        if (isMobile()) location.href = `mailto:?subject=${encodeURIComponent(su)}&body=${encodeURIComponent(body)}`; // abre o app de e-mail (Gmail no Android)
+        else openLink('https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(su) + '&body=' + encodeURIComponent(body));
+      }
+      const canSystem = () => !!navigator.share;
+      function system(id) {
+        const t = tasks.find(x => x.id === id); if (!t) return;
+        navigator.share({ title: t.title, text: text(t, false) }).catch(() => {});
+      }
+      return { text, whatsapp, gmail, system, canSystem };
+    })();
+
     // ---- Detalhes ----
     function renderDetail() {
       const t = tasks.find(x => x.id === detailId);
@@ -1521,6 +1570,14 @@
           </div>
           <p class="text-xs text-muted mt-1">${t.startTime ? `Evento às ${esc(t.startTime)}, ${esc(fmtDur(Number(t.duration) || 30))}` : 'Evento de dia inteiro (defina um horário para marcar a hora)'}${({ daily: ', repete todo dia', weekly: ', repete toda semana', monthly: ', repete todo mês' })[t.recurrence] || ''}.</p>`
           : `<p class="text-xs text-muted">Defina uma data planejada para enviar esta tarefa como evento.</p>`}
+        </div>
+        <div>
+          <span class="label">Enviar tarefa</span>
+          <div class="grid gap-2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)${Share.canSystem() ? ' auto' : ''}">
+            <button class="btn btn-soft" data-act="shareWa" data-id="${esc(t.id)}"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</button>
+            <button class="btn btn-soft" data-act="shareMail" data-id="${esc(t.id)}"><i data-lucide="mail" class="w-4 h-4"></i> Gmail</button>
+            ${Share.canSystem() ? `<button class="btn btn-soft" style="min-width:48px;padding:0 12px" data-act="shareSys" data-id="${esc(t.id)}" aria-label="Mais opções de envio" title="Mais opções"><i data-lucide="share-2" class="w-4 h-4"></i></button>` : ''}
+          </div>
         </div>
         ${fld('Descrição', `<textarea class="field" rows="3" data-field="description" data-id="${esc(t.id)}" placeholder="Adicionar notas">${esc(t.description)}</textarea>`)}
         <div>
@@ -1600,6 +1657,9 @@
       reschedAll: () => rescheduleAllOverdue(),
       calGoogle: id => Cal.openGoogle(id),
       calIcs: id => Cal.downloadIcs(id),
+      shareWa: id => Share.whatsapp(id),
+      shareMail: id => Share.gmail(id),
+      shareSys: id => Share.system(id),
       expandSubs: id => { expanded.has(id) ? expanded.delete(id) : expanded.add(id); renderAll(); },
       cAddSub: () => addCreateSub(),
       cToggleSub: (id, v, el) => { const x = createSubs.find(s => s.id === el.dataset.sid); if (x) x.completed = !x.completed; renderCreateSubs(); saveDraft(); },
