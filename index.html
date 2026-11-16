@@ -1232,6 +1232,7 @@
         t[field] = value;
       }
       save();
+      if (detailId === id && ['plannedDate', 'startTime', 'duration', 'recurrence'].includes(field)) renderDetail();
     }
 
     // Subtarefas (detalhes e cartão)
@@ -1392,6 +1393,98 @@
       save();
     }
 
+    // ---- Agenda (Google Agenda e arquivo .ics) ----
+    const Cal = (() => {
+      const pad = n => String(n).padStart(2, '0');
+      const ymd = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+      const local = d => `${ymd(d)}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+      const utc = d => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+      const RRULE = { daily: 'RRULE:FREQ=DAILY', weekly: 'RRULE:FREQ=WEEKLY', monthly: 'RRULE:FREQ=MONTHLY' };
+      const PRIO = { normal: 'Normal', high: 'Alta', urgent: 'Urgente' };
+      function build(t) {
+        if (!t || !t.plannedDate) return null;
+        const day = parseDate(t.plannedDate);
+        let start = null, end = null, allDay = true;
+        if (t.startTime) {
+          const [h, m] = t.startTime.split(':').map(Number);
+          start = new Date(day); start.setHours(h, m, 0, 0);
+          end = new Date(start.getTime() + (Number(t.duration) || 30) * 60000);
+          allDay = false;
+        } else {
+          start = day; end = new Date(day); end.setDate(end.getDate() + 1);
+        }
+        const proj = projects.find(p => p.id === t.projectId);
+        const lines = [];
+        if (t.description) lines.push(t.description, '');
+        if (t.subtasks && t.subtasks.length) {
+          lines.push('Subtarefas:');
+          t.subtasks.forEach(x => lines.push(`${x.completed ? '✓' : '•'} ${x.title}`));
+          lines.push('');
+        }
+        lines.push(`Prioridade: ${PRIO[t.priority] || 'Normal'}${proj ? ` · Projeto: ${proj.name}` : ''}`);
+        if (t.dueDate) lines.push(`Prazo: ${parseDate(t.dueDate).toLocaleDateString('pt-BR')}`);
+        lines.push('Criado no Prio');
+        return { title: t.title, details: lines.join('\n'), start, end, allDay, rrule: RRULE[t.recurrence] || '' };
+      }
+      function googleUrl(t) {
+        const e = build(t);
+        if (!e) return null;
+        const q = new URLSearchParams({ action: 'TEMPLATE', text: e.title, details: e.details });
+        q.set('dates', e.allDay ? `${ymd(e.start)}/${ymd(e.end)}` : `${local(e.start)}/${local(e.end)}`);
+        try { q.set('ctz', Intl.DateTimeFormat().resolvedOptions().timeZone); } catch (err) {}
+        if (e.rrule) q.set('recur', e.rrule);
+        return 'https://calendar.google.com/calendar/render?' + q.toString();
+      }
+      const icsEsc = v => String(v).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+      const enc = new TextEncoder();
+      function fold(line) { // linhas de no máximo 75 bytes (RFC 5545), sem partir acentos
+        const out = []; let cur = '', bytes = 0;
+        for (const ch of line) {
+          const n = enc.encode(ch).length;
+          if (bytes + n > 74) { out.push(cur); cur = ' '; bytes = 1; }
+          cur += ch; bytes += n;
+        }
+        out.push(cur); return out.join('\r\n');
+      }
+      function ics(t) {
+        const e = build(t);
+        if (!e) return null;
+        const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Prio//Tarefas//PT-BR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+          `UID:${t.id}@prio`, `DTSTAMP:${utc(new Date())}`,
+          e.allDay ? `DTSTART;VALUE=DATE:${ymd(e.start)}` : `DTSTART:${utc(e.start)}`,
+          e.allDay ? `DTEND;VALUE=DATE:${ymd(e.end)}` : `DTEND:${utc(e.end)}`,
+          `SUMMARY:${icsEsc(e.title)}`, `DESCRIPTION:${icsEsc(e.details)}`];
+        if (e.rrule) L.push(e.rrule);
+        L.push('END:VEVENT', 'END:VCALENDAR');
+        return L.map(fold).join('\r\n') + '\r\n';
+      }
+      function openGoogle(id) {
+        const t = tasks.find(x => x.id === id);
+        const url = googleUrl(t);
+        if (!url) { ToastUndo.show('Defina uma data para adicionar à agenda'); return; }
+        const a = document.createElement('a'); // window.open com noopener devolve null; o link abre em nova aba sem perder o app
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+      function downloadIcs(id) {
+        const t = tasks.find(x => x.id === id);
+        const text = ics(t);
+        if (!text) { ToastUndo.show('Defina uma data para adicionar à agenda'); return; }
+        const name = (t.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'tarefa') + '.ics';
+        const file = new File([text], name, { type: 'text/calendar' });
+        if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+          navigator.share({ files: [file], title: t.title }).catch(() => {});
+          return;
+        }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(file); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        ToastUndo.show('Arquivo de agenda baixado');
+      }
+      return { build, googleUrl, ics, openGoogle, downloadIcs };
+    })();
+
     // ---- Detalhes ----
     function renderDetail() {
       const t = tasks.find(x => x.id === detailId);
@@ -1419,6 +1512,15 @@
           ${fld('Horário de início', dat('startTime', t.startTime, 'time'))}
           ${fld('Duração estimada', sel('duration', durList.map(m => opt(m, m ? fmtDur(m) : 'Sem duração', t.duration === m)).join('')))}
           <div class="col-span-2">${fld('Recorrência', sel('recurrence', opt('none', 'Sem recorrência', t.recurrence === 'none') + opt('daily', 'Diária', t.recurrence === 'daily') + opt('weekly', 'Semanal', t.recurrence === 'weekly') + opt('monthly', 'Mensal', t.recurrence === 'monthly')))}</div>
+        </div>
+        <div>
+          <span class="label">Adicionar à agenda</span>
+          ${t.plannedDate ? `<div class="grid grid-cols-2 gap-2">
+            <button class="btn btn-soft" data-act="calGoogle" data-id="${esc(t.id)}"><i data-lucide="calendar-plus" class="w-4 h-4"></i> Google Agenda</button>
+            <button class="btn btn-soft" data-act="calIcs" data-id="${esc(t.id)}"><i data-lucide="download" class="w-4 h-4"></i> Outra agenda</button>
+          </div>
+          <p class="text-xs text-muted mt-1">${t.startTime ? `Evento às ${esc(t.startTime)}, ${esc(fmtDur(Number(t.duration) || 30))}` : 'Evento de dia inteiro (defina um horário para marcar a hora)'}${({ daily: ', repete todo dia', weekly: ', repete toda semana', monthly: ', repete todo mês' })[t.recurrence] || ''}.</p>`
+          : `<p class="text-xs text-muted">Defina uma data planejada para enviar esta tarefa como evento.</p>`}
         </div>
         ${fld('Descrição', `<textarea class="field" rows="3" data-field="description" data-id="${esc(t.id)}" placeholder="Adicionar notas">${esc(t.description)}</textarea>`)}
         <div>
@@ -1496,6 +1598,8 @@
       undo: () => ToastUndo.undo(),
       resched: (id, v) => rescheduleTask(id, v),
       reschedAll: () => rescheduleAllOverdue(),
+      calGoogle: id => Cal.openGoogle(id),
+      calIcs: id => Cal.downloadIcs(id),
       expandSubs: id => { expanded.has(id) ? expanded.delete(id) : expanded.add(id); renderAll(); },
       cAddSub: () => addCreateSub(),
       cToggleSub: (id, v, el) => { const x = createSubs.find(s => s.id === el.dataset.sid); if (x) x.completed = !x.completed; renderCreateSubs(); saveDraft(); },
